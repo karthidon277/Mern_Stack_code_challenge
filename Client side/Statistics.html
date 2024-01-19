@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions Viewer</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+    .summary-box {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #dddddd;
+    }
+  </style>
+</head>
+<body>
+  <h2>Transactions Viewer</h2>
+  
+  <label for="monthDropdown">Select Month:</label>
+  <select id="monthDropdown"></select>
+  
+  <input type="text" id="searchBox" placeholder="Search Transaction">
+
+  <button id="prevBtn" onclick="loadPage('prev')">Previous</button>
+  <button id="nextBtn" onclick="loadPage('next')">Next</button>
+
+  <div class="summary-box" id="summaryBox">
+    <h3>Summary for Selected Month:</h3>
+    <p>Total Sale Amount: <span id="totalSaleAmount"></span></p>
+    <p>Total Sold Items: <span id="totalSoldItems"></span></p>
+    <p>Total Not Sold Items: <span id="totalNotSoldItems"></span></p>
+  </div>
+
+  <table id="transactionsTable">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Description</th>
+        <th>Price</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const monthDropdown = document.getElementById('monthDropdown');
+      const searchBox = document.getElementById('searchBox');
+      const transactionsTable = document.getElementById('transactionsTable').getElementsByTagName('tbody')[0];
+      const summaryBox = document.getElementById('summaryBox');
+      const totalSaleAmountSpan = document.getElementById('totalSaleAmount');
+      const totalSoldItemsSpan = document.getElementById('totalSoldItems');
+      const totalNotSoldItemsSpan = document.getElementById('totalNotSoldItems');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      let currentPage = 1;
+      const pageSize = 10;  // Adjust as needed
+
+      // Populate months in the dropdown
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      months.forEach((month, index) => {
+        const option = document.createElement('option');
+        option.value = index + 1;
+        option.text = month;
+        monthDropdown.add(option);
+      });
+
+      // Set default month to March
+      monthDropdown.value = 3;
+
+      // Initial load
+      loadTransactions();
+
+      // Event listeners
+      monthDropdown.addEventListener('change', () => {
+        currentPage = 1; // Reset page when changing the month
+        loadTransactions();
+      });
+      searchBox.addEventListener('input', loadTransactions);
+
+      function loadTransactions() {
+        const selectedMonth = monthDropdown.value;
+        const searchText = searchBox.value.trim();
+
+        // Construct API URL
+        let apiUrl = `/api/transactions?month=${selectedMonth}&page=${currentPage}&pageSize=${pageSize}`;
+
+        if (searchText) {
+          apiUrl += `&search=${searchText}`;
+        }
+
+        // Fetch data from API
+        fetch(apiUrl)
+          .then(response => response.json())
+          .then(data => {
+            // Update table with new data
+            displayTransactions(data.transactions);
+
+            // Enable/Disable navigation buttons based on pagination info
+            prevBtn.disabled = !data.pagination.hasPrev;
+            nextBtn.disabled = !data.pagination.hasNext;
+
+            // Update summary box
+            updateSummaryBox(data.summary);
+          })
+          .catch(error => console.error('Error fetching transactions:', error));
+      }
+
+      function loadPage(direction) {
+        if (direction === 'next') {
+          currentPage++;
+        } else if (direction === 'prev' && currentPage > 1) {
+          currentPage--;
+        }
+
+        loadTransactions();
+      }
+
+      function displayTransactions(transactions) {
+        // Clear existing rows
+        while (transactionsTable.firstChild) {
+          transactionsTable.removeChild(transactionsTable.firstChild);
+        }
+
+        // Populate table with new data
+        transactions.forEach(transaction => {
+          const row = transactionsTable.insertRow();
+          const titleCell = row.insertCell(0);
+          const descriptionCell = row.insertCell(1);
+          const priceCell = row.insertCell(2);
+
+          titleCell.textContent = transaction.title;
+          descriptionCell.textContent = transaction.description;
+          priceCell.textContent = transaction.price;
+        });
+      }
+
+      function updateSummaryBox(summary) {
+        totalSaleAmountSpan.textContent = summary.totalSaleAmount;
+        totalSoldItemsSpan.textContent = summary.totalSoldItems;
+        totalNotSoldItemsSpan.textContent = summary.totalNotSoldItems;
+      }
+    });
+  </script>
+</body>
+</html>
